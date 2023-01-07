@@ -10,16 +10,111 @@
 #include <ctype.h>
 #include <locale.h>
 
-//idée : les clients envoient les signal quand ils se lancent
-//le serveur renvoi un signal quand le nombre de clients voulus est connectés
-//la boite aux lettres peut alors s'ouvrir
+int fin_de_partie = 0;
+
+void pendu(int numero)
+{
+    switch (numero)
+    {
+    case 0:
+        printf(" _______\n");
+        printf(" |     |\n");
+        printf(" |     \n");
+        printf(" |     \n");
+        printf(" |     \n");
+        printf(" |     \n");
+        printf("_|___\n");
+        break;
+    
+    case 1:
+        printf(" _______\n");
+        printf(" |     |\n");
+        printf(" |     O\n");
+        printf(" |     \n");
+        printf(" |     \n");
+        printf(" |     \n");
+        printf("_|___\n");
+        break;
+    
+    case 2:
+        printf(" _______\n");
+        printf(" |     |\n");
+        printf(" |     O\n");
+        printf(" |     |\n");
+        printf(" |     \n");
+        printf(" |     \n");
+        printf("_|___\n");
+        break;
+
+    case 3: 
+        printf(" _______\n");
+        printf(" |     |\n");
+        printf(" |     O\n");
+        printf(" |    /|\n");
+        printf(" |     \n");
+        printf(" |     \n");
+        printf("_|___\n");
+        break;
+
+    case 4:
+        printf(" _______\n");
+        printf(" |     |\n");
+        printf(" |     O\n");
+        printf(" |    /|\\\n");
+        printf(" |     \n");
+        printf(" |     \n");
+        printf("_|___\n");
+        break;
+
+    case 5: 
+        printf(" _______\n");
+        printf(" |     |\n");
+        printf(" |     O\n");
+        printf(" |    /|\\\n");
+        printf(" |    / \n");
+        printf(" |     \n");
+        printf("_|___\n");
+        break;
+    
+    case 6: 
+        printf(" _______\n");
+        printf(" |     |\n");
+        printf(" |     O\n");
+        printf(" |    /|\\\n");
+        printf(" |    / \\\n");
+        printf(" |     \n");
+        printf("_|___\n");
+        fin_de_partie = 1;
+        break;
+
+    default:
+        break;
+    }
+}
+struct msgbuf
+{
+    long mtype;
+    char mtext[20];
+};
+struct msgbuf msg;
 
 int main(int argc, char *argv[])
 {
 
-    //création d'une boite aux lettres
-    int boite = msgget(1234, IPC_CREAT | 0666);
-    if (boite == -1)
+    //definition du nbErreur
+    int nbErreur = 0;
+
+    //création d'une boite aux lettre pour l'initialisation
+    int boite_init = msgget(1234, IPC_CREAT | 0666);
+    if (boite_init == -1)
+    {
+        perror("msgget");
+        return 1;
+    }
+
+    //création d'une boite aux lettre pour les tours
+    int boite_tour = msgget(2345, IPC_CREAT | 0666);
+    if (boite_tour == -1)
     {
         perror("msgget");
         return 1;
@@ -45,13 +140,7 @@ int main(int argc, char *argv[])
     while (i < nbJoueur)
     {
         //réception du message
-        struct msgbuf
-        {
-            long mtype;
-            char mtext[20];
-        };
-        struct msgbuf msg;
-        int ret = msgrcv(boite, &msg, sizeof(msg.mtext), 0, 0);
+        int ret = msgrcv(boite_init, &msg, sizeof(msg.mtext), 0, 0);
         if (ret == -1)
         {
             perror("msgrcv");
@@ -121,12 +210,88 @@ int main(int argc, char *argv[])
     //afficher le mot
     printf("Le mot est : %s\n", mot);
 
-    //envoi un signal aux joueurs pour dire que la partie à commencer
+    //envoi un signal aux joueurs pour dire que la partie à commencé
     for (int i = 0; i < nbJoueur; i++)
     {
-        kill(tabPid[i], SIGUSR1);
+        if (kill(tabPid[i], SIGUSR1) == -1)
+        {
+            perror("Error in kill");
+        } 
     }
 
+    while(fin_de_partie == 0)
+    {
+        for (int i = 0; i < nbJoueur; i++)
+        {
+            //On attend que les joueurs soient prêts
+            sleep(3);
+            //On envoi un signal au joueur pour dire qu'il doit jouer
+            if (kill(tabPid[i], SIGUSR1) == -1)
+            {
+                perror("Error in kill");
+            } 
+
+            //réception de la lettre du joueur
+            int ret = msgrcv(boite_tour, &msg, sizeof(msg.mtext), 0, 0);
+            if (ret == -1)
+            {
+                perror("msgrcv");
+                return 1;
+            }
+
+            //effacer l'écran
+            system("clear");
+
+            //afficher la lettre du joueur
+            printf("Le joueur %s a joué la lettre %s\n", tabPrenom[i], msg.mtext);
+
+            //vérifier si la lettre est dans le mot
+            int lettreTrouve = 0;
+            for (int j = 0; j < tailleMot; j++)
+            {
+                if (toupper(msg.mtext[0]) == toupper(mot[j]))
+                {
+                    motCache[j] = mot[j];
+                    lettreTrouve = 1;
+                }
+            }
+
+            //afficher si la lettre est dans le mot ou non
+            if (lettreTrouve == 1)
+            {
+                printf("La lettre %s est dans le mot\n", msg.mtext);
+            }
+            else
+            {
+                printf("La lettre %s n'est pas dans le mot\n", msg.mtext);
+                nbErreur++;
+            }
+
+            //afficher l'état du pendu
+            pendu(nbErreur);
+
+            //si le nombre d'erreur est égal à 6, on envoie SIGUSR2 à tous les joueurs pour les prévenir de la fin de la partie
+            if(nbErreur == 6)
+            {
+                for (int i = 0; i < nbJoueur; i++)
+                {
+                    if (kill(tabPid[i], SIGUSR2) == -1)
+                    {
+                        perror("Error in kill");
+                    } 
+                }
+                printf("Le pendu est pendu !\n");
+                printf("Le mot était : %s\n", mot);
+                break;
+            }
+            else
+            {
+                //afficher le mot à deviner
+                printf("Le mot de %d lettres à deviner est : %s !!!\n",tailleMot, motCache);
+            }
+            
+        }
+    }
 
     return 0;
 }
