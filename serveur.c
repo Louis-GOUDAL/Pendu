@@ -9,8 +9,23 @@
 #include <time.h>
 #include <ctype.h>
 #include <locale.h>
+#include <stdbool.h>
+
+#define MAX_JOUEUR 10
 
 int fin_de_partie = 0;
+
+struct msgbuf
+{
+    long mtype;
+    char mtext[20];
+};
+
+struct utilisateur
+{
+    int pid;
+    char prenom[20];
+};
 
 void pendu(int numero)
 {
@@ -91,38 +106,23 @@ void pendu(int numero)
         break;
     }
 }
-struct msgbuf
-{
-    long mtype;
-    char mtext[20];
-};
-struct msgbuf msg;
 
 int main(int argc, char *argv[])
 {
-
-    //definition du nbErreur
-    int nbErreur = 0;
-
-    //création d'une boite aux lettre pour l'initialisation
-    int boite_init = msgget(1234, IPC_CREAT | 0666);
-    if (boite_init == -1)
-    {
-        perror("msgget");
-        return 1;
-    }
-
-    //création d'une boite aux lettre pour les tours
-    int boite_tour = msgget(2345, IPC_CREAT | 0666);
-    if (boite_tour == -1)
-    {
-        perror("msgget");
-        return 1;
-    }
+    int nbLettreTrouvee = 0; //definition du nbLettreTrouvee
+    int nbErreur = 0; //definition du nbErreur
+    int boite_init = msgget(1234, IPC_CREAT | 0666); //création d'une boite aux lettre pour l'initialisation
+    int boite_tour = msgget(2345, IPC_CREAT | 0666); //création d'une boite aux lettre pour les tours
+    int nbJoueur = 0; //definition du nombre de joueur
+    struct msgbuf msg; //definition du message
+    struct utilisateur tabUtilisateur[MAX_JOUEUR]; //definiton du tableau d'utilisateurs
+    int nbMot = 0; //definition du nombre de mot
+    char mot[20]; //definition du mot
+    bool isLettreTrouve = false; //definition du booleen isLettreTrouve
+    bool isMotTrouve = false; //definition du booleen isMotTrouve
 
     //demander le nombre de joueur tant qu'il est inférieur à 3
-    int nbJoueur = 0;
-    while (nbJoueur < 1)
+    while (nbJoueur < 1 || nbJoueur > MAX_JOUEUR)
     {
         printf("Entrez le nombre de joueur (supérieur à 2): ");
         scanf("%d", &nbJoueur);
@@ -130,13 +130,8 @@ int main(int argc, char *argv[])
 
     printf("\nEn attente de connexion des joueurs...\n\n");
 
-    //tableau qui stocke le PID
-    int tabPid[nbJoueur];
-    //tableau qui stocke le prénom
-    char tabPrenom[nbJoueur][20];
-    
     //boucle jusqu'à ce que le tableau soit rempli
-    int i = 0;
+    int i = 0; //definition de i
     while (i < nbJoueur)
     {
         //réception du message
@@ -148,11 +143,11 @@ int main(int argc, char *argv[])
         }
 
         //stocker le PID et le nom
-        tabPid[i] = msg.mtype;
-        strcpy(tabPrenom[i], msg.mtext);
+        tabUtilisateur[i].pid = msg.mtype;
+        strcpy(tabUtilisateur[i].prenom, msg.mtext);
 
-        //afficher le nom du joueur et son PID
-        printf("Joueur n°%d : %s\n", i+1, tabPrenom[i]);
+        //afficher le nom du joueur
+        printf("Joueur n°%d : %s\n", i+1, tabUtilisateur[i].prenom);
 
         i++;
     }
@@ -169,8 +164,6 @@ int main(int argc, char *argv[])
     }
 
     //compter le nombre de mot dans le fichier
-    int nbMot = 0;
-    char mot[20];
     while (fgets(mot, 20, fichier) != NULL)
     {
         nbMot++;
@@ -192,6 +185,15 @@ int main(int argc, char *argv[])
         nbAleatoire = rand() % nbMot;
     }
 
+    //supprimer le retour à la ligne de mon mot s'il y en a un 
+    for(int i=0; i<strlen(mot); i++)
+    {
+        if(mot[i] == '\r')
+        {
+            mot[i] = '\0';
+        }
+    }
+
     //mettre le mot en majuscule
     for (int i = 0; i < strlen(mot); i++)
     {
@@ -199,21 +201,27 @@ int main(int argc, char *argv[])
     }
 
     //stocker le mot dans une variable en remplacer les lettres par des "_"
-    char motCache[tailleMot-1];
-    for (int i = 0; i < tailleMot; i++)
+    char motCache[tailleMot];
+    for (int i = 0; i <= tailleMot; i++)
     {
-        motCache[i] = '_';
+        if(i != tailleMot)
+        {
+            motCache[i] = '_';
+        }
+        else
+        {
+            motCache[i] = '\0';
+        }
     }
+
 
     //afficher le mot à deviner
     printf("Le mot de %d lettres à deviner est : %s !!!\n",tailleMot, motCache);
-    //afficher le mot
-    printf("Le mot est : %s\n", mot);
 
     //envoi un signal aux joueurs pour dire que la partie à commencé
     for (int i = 0; i < nbJoueur; i++)
     {
-        if (kill(tabPid[i], SIGUSR1) == -1)
+        if (kill(tabUtilisateur[i].pid, SIGUSR1) == -1)
         {
             perror("Error in kill");
         } 
@@ -224,9 +232,9 @@ int main(int argc, char *argv[])
         for (int i = 0; i < nbJoueur; i++)
         {
             //On attend que les joueurs soient prêts
-            sleep(3);
+            sleep(1);
             //On envoi un signal au joueur pour dire qu'il doit jouer
-            if (kill(tabPid[i], SIGUSR1) == -1)
+            if (kill(tabUtilisateur[i].pid, SIGUSR1) == -1)
             {
                 perror("Error in kill");
             } 
@@ -242,47 +250,82 @@ int main(int argc, char *argv[])
             //effacer l'écran
             system("clear");
 
-            //afficher la lettre du joueur
-            printf("Le joueur %s a joué la lettre %s\n", tabPrenom[i], msg.mtext);
-
-            //vérifier si la lettre est dans le mot
-            int lettreTrouve = 0;
-            for (int j = 0; j < tailleMot; j++)
+            if(strlen(msg.mtext) == 1)
             {
-                if (toupper(msg.mtext[0]) == toupper(mot[j]))
+                //afficher la lettre du joueur
+                printf("Le joueur %s a joué la lettre '%s'\n", tabUtilisateur[i].prenom, msg.mtext);
+
+                //vérifier si la lettre est dans le mot
+                for (int j = 0; j < tailleMot; j++)
                 {
-                    motCache[j] = mot[j];
-                    lettreTrouve = 1;
+                    if (toupper(msg.mtext[0]) == toupper(mot[j]))
+                    {
+                        motCache[j] = mot[j];
+                        isLettreTrouve = true;
+                        nbLettreTrouvee++;
+                    }
                 }
-            }
 
-            //afficher si la lettre est dans le mot ou non
-            if (lettreTrouve == 1)
-            {
-                printf("La lettre %s est dans le mot\n", msg.mtext);
+                //afficher si la lettre est dans le mot ou non
+                if (isLettreTrouve == true)
+                {
+                    printf("La lettre '%s' est dans le mot\n", msg.mtext);
+                    isLettreTrouve = false;
+                }
+                else
+                {
+                    printf("La lettre '%s' n'est pas dans le mot\n", msg.mtext);
+                    nbErreur++;
+                }
             }
             else
             {
-                printf("La lettre %s n'est pas dans le mot\n", msg.mtext);
-                nbErreur++;
+                //afficher le mot du joueur
+                printf("Le joueur %s a joué le mot '%s'\n", tabUtilisateur[i].prenom, msg.mtext);
+
+                //vérifier si le mot est le bon
+                //mettre le mot en majuscule
+                for (int i = 0; i < strlen(msg.mtext); i++)
+                {
+                    msg.mtext[i] = toupper(msg.mtext[i]);
+                }
+                if (strcmp(msg.mtext, mot) == 0)
+                {
+                    nbLettreTrouvee = tailleMot;
+                }
+                else
+                {
+                    printf("Le mot est incorrect\n");
+                    nbErreur++;
+                }
             }
 
             //afficher l'état du pendu
             pendu(nbErreur);
 
-            //si le nombre d'erreur est égal à 6, on envoie SIGUSR2 à tous les joueurs pour les prévenir de la fin de la partie
+            //On envoi un signal si la partie est finie
             if(nbErreur == 6)
             {
                 for (int i = 0; i < nbJoueur; i++)
                 {
-                    if (kill(tabPid[i], SIGUSR2) == -1)
+                    if (kill(tabUtilisateur[i].pid, SIGUSR2) == -1)
                     {
                         perror("Error in kill");
                     } 
                 }
-                printf("Le pendu est pendu !\n");
-                printf("Le mot était : %s\n", mot);
-                break;
+                printf("\nLe pendu s'est pendu :/ !!!\n");
+                printf("\nLe mot était : %s !!!\n", mot);
+            }
+            else if(nbLettreTrouvee == tailleMot)
+            {
+                for (int i = 0; i < nbJoueur; i++)
+                {
+                    if (kill(tabUtilisateur[i].pid, SIGUSR2) == -1)
+                    {
+                        perror("Error in kill");
+                    } 
+                }
+                printf("\nVous avez trouvé le mot : %s !!!\n", mot);
             }
             else
             {
@@ -291,6 +334,28 @@ int main(int argc, char *argv[])
             }
             
         }
+    }
+
+    sleep(1);
+
+    //On envoi un signal aux joueurs pour dire qu'ils ont gagnés ou perdus
+    for (int i = 0; i < nbJoueur; i++)
+    {
+        if(nbErreur == 6)
+        {
+            if (kill(tabUtilisateur[i].pid, SIGUSR2) == -1)
+            {
+                perror("Error in kill");
+            } 
+        }
+        else
+        {
+            if (kill(tabUtilisateur[i].pid, SIGUSR1) == -1)
+            {
+                perror("Error in kill");
+            } 
+        }
+
     }
 
     return 0;

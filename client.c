@@ -19,7 +19,6 @@ struct msgbuf
 
 void game_over()
 {
-    fin_de_jeu = 1;
     system("clear");
     printf("┼┼┼┼┼┼┼┼┼┼┼┼┼┼┼┼┼┼┼┼┼┼┼┼┼┼┼┼┼┼┼┼┼┼┼┼┼┼┼┼┼┼┼┼┼┼┼┼┼┼┼┼┼┼┼┼┼┼┼┼┼┼┼┼┼┼┼┼┼┼┼┼┼┼┼┼\n");
     printf("┼┼┼┼┼┼┼┼┼┼┼┼┼┼┼┼┼┼┼┼███▀▀▀██┼███▀▀▀███┼███▀█▄█▀███┼██▀▀▀┼┼┼┼┼┼┼┼┼┼┼┼┼┼┼┼┼┼┼┼\n");
@@ -101,7 +100,14 @@ void debut_partie()
 
 void mon_tour()
 {
+    system("clear");
     printf("\nC'est à vous de jouer !\n");
+}
+
+void fin_de_partie()
+{
+    fin_de_jeu = 1;
+    printf("\nFin de la partie !\n");
 }
 
 int main(int argc, char *argv[])
@@ -142,37 +148,46 @@ int main(int argc, char *argv[])
     //on attend que le serveur envoie un signal pour dire que la partie commence
     signal(SIGUSR1, debut_partie);
     pause();
-
-    //si on recoit SIGUSR2, on appelle la fonction game_over
-    signal(SIGUSR2, game_over);
     
+    signal(SIGUSR2, fin_de_partie);
+
     while(fin_de_jeu == 0)
     {  
         signal(SIGUSR1, mon_tour);
         pause();
-        
-        if(fin_de_jeu == 1)
+
+        if(fin_de_jeu != 1)
         {
-            break;
+            //Demande la lettre au joueur
+            printf("\nEntrez une lettre ou un mot : ");
+            scanf("%s", ma_lettre);
         }
 
-        //Demande la lettre au joueur
-        printf("Entrez une lettre ou un mot : ");
-        scanf("%s", ma_lettre);
-
-        //envoie la lettre et le PID au serveur
-        msg.mtype = getpid();
-        sprintf(msg.mtext, "%s", ma_lettre);
-
-        //envoie le message dans la boite aux lettres
-        int ret = msgsnd(boite_tour, &msg, sizeof(msg.mtext), 0);
-        if (ret == -1)
+        if(fin_de_jeu != 1)
         {
-            perror("msgsnd");
-            return 1;
+            //envoie la lettre et le PID au serveur
+            msg.mtype = getpid();
+            sprintf(msg.mtext, "%s", ma_lettre);
+        }
+
+        if(fin_de_jeu != 1)
+        {
+            //envoie le message dans la boite aux lettres
+            int ret = msgsnd(boite_tour, &msg, sizeof(msg.mtext), 0);
+            if (ret == -1)
+            {
+                perror("msgsnd");
+                return 1;
+            }
         }
         
     }
+
+    //si on recoit SIGUSR1, on appelle la fonction bravo
+    //si on recoit SIGUSR2, on appelle la fonction game_over
+    signal(SIGUSR1, bravo);
+    signal(SIGUSR2, game_over);
+    pause();
     
     
     return 0;
