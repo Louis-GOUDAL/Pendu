@@ -11,12 +11,15 @@
 
 int fin_de_jeu = 0;
 
+//structure pour le message
 struct msgbuf
 {
     long mtype;
     char mtext[20];
 } msg;
 
+
+//fonction en cas de Game Over
 void game_over()
 {
     system("clear");
@@ -47,6 +50,7 @@ void game_over()
     printf("┼┼┼┼┼┼┼┼┼┼┼┼┼┼┼┼┼┼┼┼┼┼┼┼┼┼┼┼┼┼┼┼┼┼┼┼┼┼┼┼┼┼┼┼┼┼┼┼┼┼┼┼┼┼┼┼┼┼┼┼┼┼┼┼┼┼┼┼┼┼┼┼┼┼┼┼\n");
 }
 
+//fonction en cas de victoire
 void bravo()
 {
     while(1)
@@ -93,17 +97,20 @@ void bravo()
     }
 }
 
+//fonction de debut de partie
 void debut_partie()
 {
     printf("\nLancement de la partie !\n");
 }
 
+//fonction de debut de tour
 void mon_tour()
 {
     system("clear");
     printf("\nC'est à vous de jouer !\n");
 }
 
+//fonction de fin de partie
 void fin_de_partie()
 {
     fin_de_jeu = 1;
@@ -149,6 +156,7 @@ int main(int argc, char *argv[])
     signal(SIGUSR1, debut_partie);
     pause();
     
+    //fonction de fin de partie
     signal(SIGUSR2, fin_de_partie);
 
     while(fin_de_jeu == 0)
@@ -184,8 +192,8 @@ int main(int argc, char *argv[])
     }
 
     //si on recoit SIGUSR1, on appelle la fonction bravo
-    //si on recoit SIGUSR2, on appelle la fonction game_over
     signal(SIGUSR1, bravo);
+    //si on recoit SIGUSR2, on appelle la fonction game_over
     signal(SIGUSR2, game_over);
     pause();
     

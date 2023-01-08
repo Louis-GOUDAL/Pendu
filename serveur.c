@@ -173,7 +173,6 @@ int main(int argc, char *argv[])
     srand(time(NULL));
     int nbAleatoire = rand() % nbMot;
     int tailleMot = 0;
-
     while (tailleMot < 5)
     {
         fseek(fichier, 0, SEEK_SET);
