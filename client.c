@@ -9,6 +9,9 @@
 #include <time.h>
 #include <ctype.h>
 
+#define CLE_INIT 1234
+#define CLE_TOUR 2345
+
 int fin_de_jeu = 0;
 
 //structure pour le message
@@ -126,7 +129,7 @@ int main(int argc, char *argv[])
     scanf("%s", prenom);
 
     //création d'une boite aux lettre pour l'initialisation
-    int boite_init = msgget(1234, 0);
+    int boite_init = msgget(CLE_INIT, 0);
     if(boite_init == -1)
     {
         perror("msgget");
@@ -134,7 +137,7 @@ int main(int argc, char *argv[])
     }
 
     //création d'une boite aux lettre pour les tours
-    int boite_tour = msgget(2345, 0);
+    int boite_tour = msgget(CLE_TOUR, 0);
     if(boite_tour == -1)
     {
         perror("msgget");

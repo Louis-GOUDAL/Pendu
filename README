@@ -1,0 +1,23 @@
+Le jeu du pendu est un jeu de devinette qui consiste à trouver un mot en devinant une lettre à la fois. 
+Les joueurs dispose de plusieurs essais pour deviner le mot correctement, sous peine de perdre la partie.
+Il faut savoir que ce jeu se joue en coopération entre les joueurs.
+
+Voici comment jouer au jeu du pendu sur Github :
+
+    Cloner le dépôt sur votre ordinateur
+    Lancer l'exectuable serveur dans un terminal
+    Pour chaque joueur, il faut lancer l'executable client pour pouvoir jouer
+    Suivre les instructions à l'écran pour jouer au jeu
+    
+Voici quelques règles du jeu :
+
+    Les joueurs dispose de 6 essais au total pour deviner le mot correctement
+    Si le joueur devine une lettre qui se trouve dans le mot, elle sera affichée à sa bonne place dans le mot
+    Si le joueur devine une lettre qui ne se trouve pas dans le mot, il perd un essai
+
+Le jeu se termine lorsque :
+
+    Les joueurs ont devinés le mot correctement
+    Les joueurs ont utilisés tous leurs essais sans avoir deviné le mot correctement
+
+Bonne chance !

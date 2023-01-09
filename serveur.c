@@ -12,6 +12,8 @@
 #include <stdbool.h>
 
 #define MAX_JOUEUR 10
+#define CLE_INIT 1234
+#define CLE_TOUR 2345
 
 int fin_de_partie = 0;
 
@@ -111,8 +113,8 @@ int main(int argc, char *argv[])
 {
     int nbLettreTrouvee = 0; //definition du nbLettreTrouvee
     int nbErreur = 0; //definition du nbErreur
-    int boite_init = msgget(1234, IPC_CREAT | 0666); //création d'une boite aux lettre pour l'initialisation
-    int boite_tour = msgget(2345, IPC_CREAT | 0666); //création d'une boite aux lettre pour les tours
+    int boite_init = msgget(CLE_INIT, IPC_CREAT | 0666); //création d'une boite aux lettre pour l'initialisation
+    int boite_tour = msgget(CLE_TOUR, IPC_CREAT | 0666); //création d'une boite aux lettre pour les tours
     int nbJoueur = 0; //definition du nombre de joueur
     struct msgbuf msg; //definition du message
     struct utilisateur tabUtilisateur[MAX_JOUEUR]; //definiton du tableau d'utilisateurs
